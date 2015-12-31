@@ -1,0 +1,208 @@
+<project name="CommonBuildTargets" default="info" basedir=".">
+	<description>
+        iDIA Computing, LLC Equine Horoscope
+    </description>
+
+	<property name="project.name" value="${ant.project.name}" />
+	<property name="project.version" value="unknown"/>
+	<property name="project.artifact.prefix" value="${project.name}-${project.version}" />
+
+
+	<!-- Source directories -->
+	<property name="prod.source.dir" value="src" />
+	<property name="test.source.dir" value="test" />
+
+	<!-- Output directories -->
+	<property name="build.dir" location="build" />
+	<property name="prod.classes.dir" location="${build.dir}/prod" />
+	<property name="test.classes.dir" location="${build.dir}/test" />
+	<property name="test.results.dir" location="${build.dir}/results" />
+	<property name="dist.dir" location="dist" />
+	<property name="dist.lib.dir" location="${dist.dir}/lib" />
+
+	<!-- Java -->
+	<property name="java.source.level" value="1.6" />
+
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: build          
+         = = = = = = = = = = = = = = = = = -->
+	<macrodef name="build">
+		<attribute name="type" default="prod" />
+		<sequential>
+			<compile-java srcdir="${@{type}.source.dir}" destdir="${@{type}.classes.dir}" classpathref="@{type}.compile.classpath" />
+            <copy-properties srcdir="${@{type}.source.dir}" destdir="${@{type}.classes.dir}" />
+            <copy-resources srcdir="${@{type}.source.dir}" destdir="${@{type}.classes.dir}" />
+		</sequential>
+	</macrodef>
+
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: compile-java          
+         = = = = = = = = = = = = = = = = = -->
+	<macrodef name="compile-java">
+		<attribute name="srcdir" default="${prod.source.dir}" />
+		<attribute name="destdir" default="${prod.classes.dir}" />
+		<attribute name="classpathref" default="" />
+		<attribute name="javalevel" default="${java.source.level}" />
+		<sequential>
+			<javac
+				srcdir="@{srcdir}"
+				destdir="@{destdir}"
+				classpathref="@{classpathref}"
+				includeantruntime="false"
+				source="@{javalevel}"
+			/>
+		</sequential>
+	</macrodef>
+
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: copy-properties          
+         = = = = = = = = = = = = = = = = = -->
+	<macrodef name="copy-properties">
+		<attribute name="srcdir" default="${prod.source.dir}" />
+		<attribute name="destdir" default="${prod.classes.dir}" />
+		<sequential>
+			<copy todir="@{destdir}" overwrite="true" flatten="true">
+				<fileset dir="@{srcdir}">
+					<include name="**/*.properties" />
+				</fileset>
+			</copy>
+		</sequential>
+	</macrodef>
+
+    <!-- = = = = = = = = = = = = = = = = =
+        macrodef: copy-resources          
+       = = = = = = = = = = = = = = = = = -->
+    <macrodef name="copy-resources">
+        <attribute name="srcdir" default="${prod.source.dir}" />
+        <attribute name="destdir" default="${prod.classes.dir}" />
+        <sequential>
+            <copy todir="@{destdir}" overwrite="true" flatten="false">
+                <fileset dir="@{srcdir}">
+                    <include name="**/resources/*" />
+                </fileset>
+            </copy>
+        </sequential>
+    </macrodef>
+	
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: create-jar      
+         = = = = = = = = = = = = = = = = = -->
+    <macrodef name="create-jar">
+    	<attribute name="type" />
+    	<attribute name="suffix" default="" />
+        <sequential>
+    		<jar jarfile="${dist.lib.dir}/${project.name}@{suffix}.jar" basedir="${@{type}.classes.dir}" />
+        </sequential>
+    </macrodef>
+
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: run-cucumber-features          
+         = = = = = = = = = = = = = = = = = -->
+	<macrodef name="run-cucumber-features">
+		<sequential>
+			<property environment="env" />
+            <exec executable="${jruby.bin}/cucumber" resultproperty="failed.cukes" >
+            <!-- exec executable="env" -->
+				<env key="PATH" path="${jruby.bin}:${env.PATH}" />
+				<env key="GEM_HOME" path="${jruby.gems}" />
+				<env key="CLASSPATH" path="" />
+			</exec>
+
+			<!-- "`eval' should not be aliased" warning is treated as an error
+        	<fail if="failed.cukes" message="Cucumber tests failed" />
+        	-->
+		</sequential>
+	</macrodef>
+
+	<!-- = = = = = = = = = = = = = = = = =
+          macrodef: run-junit-tests          
+         = = = = = = = = = = = = = = = = = -->
+	<macrodef name="run-junit-tests">
+		<attribute name="testdir" default="${test.sources.dir}" />
+		<attribute name="testresultsdir" default="${test.results.dir}" />
+		<attribute name="classpathref" default="test.run.classpath" />
+		<sequential>
+			<echo message="Output to @{testresultsdir}" />
+			<mkdir dir="@{testresultsdir}"/>
+			<junit printsummary="on" failureproperty="failed.junit">
+				<classpath>
+					<path refid="@{classpathref}" />
+				</classpath>
+				<formatter type="plain" />
+				<batchtest fork="yes" todir="@{testresultsdir}">
+					<fileset dir="@{testdir}">
+						<include name="**/*Test.java" />
+						<exclude name="**/AllTests.java" />
+					</fileset>
+				</batchtest>
+			</junit>
+			<fail if="failed.junit"/>
+		</sequential>
+	</macrodef>
+
+	<target name="all" depends="clean, run-tests, dist" />
+
+	<target name="clean">
+		<delete dir="${dist.dir}" />
+		<delete dir="${build.dir}" />
+		<delete dir="${project.clean.dirs}" />
+	</target>
+
+	<target name="dist" depends="production-jar, test-jar, zip-file" description="generate the distribution" />
+
+	<target name="dist-dir">
+		<mkdir dir="${dist.dir}" />
+	</target>
+
+	<target name="info" description="Display info about the build environment">
+		<echoproperties />
+	</target>
+
+	<target name="init">
+		<mkdir dir="${prod.classes.dir}" />
+		<mkdir dir="${test.classes.dir}" />
+		<mkdir dir="${dist.lib.dir}" />
+	</target>
+
+	<target name="production-classes" depends="init" description="compile the production code">
+		<build type="prod" />
+	</target>
+
+	<target name="production-jar" depends="production-classes, dist-dir">
+		<create-jar type="prod" />
+	</target>
+
+	<target name="quick" depends="clean, run-unit-tests" description="clean, build and unit test" />
+
+	<target name="release" depends="dist, run-tests" description="release to dist">
+	</target>
+
+	<target name="run-features">
+		<run-cucumber-features />
+	</target>
+
+	<target name="run-tests" depends="run-unit-tests" />
+
+	<target name="run-unit-tests" depends="test-classes" description="run the unit tests">
+		<run-junit-tests testdir="${test.source.dir}" />
+	</target>
+
+	<target name="test-classes" depends="production-classes" description="compile the unit tests">
+		<build type="test" />
+	</target>
+
+	<target name="test-jar" depends="test-classes, dist-dir" description="create the test jar for distribution">
+		<create-jar type="test" suffix="-test" />
+	</target>
+
+	<target name="zip-file" depends="dist-dir" description="create source distribution">
+		<zip destfile="${dist.dir}/${project.artifact.prefix}.src.zip">
+			<zipfileset dir="." prefix="${project.artifact.prefix}">
+				<include name="${prod.source.dir}/**/*" />
+				<include name="${test.source.dir}/**/*" />
+				<include name="build.*" />
+				<include name="${project.zip.contents}" />
+			</zipfileset>
+		</zip>
+	</target>
+</project>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry excluding="**/.DS_Store" kind="src" path="src"/>
+	<classpathentry excluding="**/.DS_Store" kind="src" path="test"/>
+	<classpathentry excluding="**/.DS_Store" kind="src" path="testdb"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="testlib/easymock-1.0.jar"/>
+	<classpathentry kind="lib" path="testlib/hsqldb.jar"/>
+	<classpathentry kind="lib" path="testlib/derby.jar"/>
+	<classpathentry kind="lib" path="testlib/junit-4.12.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>
